@@ -159,14 +159,15 @@ class Beam(pg.sprite.Sprite):
     ビームに関するクラス
     """
 
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle_offset: float = 0.0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
+        引数 angle_offset：ビームの角度オフセット
         """
         super().__init__()
         self.vx, self.vy = bird.dire
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) + angle_offset
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -341,6 +342,9 @@ def main():
 
     tmr = 0
     clock = pg.time.Clock()
+
+    charge_cnt = 0
+
     while True:
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
@@ -356,7 +360,17 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
                 score.value -= 200
                 gravities.add(Gravity(400))
-        screen.blit(bg_img, [0, 0])
+                screen.blit(bg_img, [0, 0])
+            if event.type == pg.KEYUP and event.key == pg.K_0:
+                if charge_cnt >= 100:
+                    for angle in range(-30,31,15):
+                        beams.add(Beam(bird, angle_offset=angle))
+                charge_cnt = 0
+
+        if key_lst[pg.K_0]:
+            charge_cnt += 1
+        else:
+            charge_cnt = 0
 
         if tmr % 200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
