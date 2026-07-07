@@ -325,6 +325,27 @@ class Gravity(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
+class HealHeart(pg.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+        # Lifeクラスと同じハート
+        self.image = pg.Surface((40, 40), pg.SRCALPHA)
+
+        pg.draw.circle(self.image, (255, 0, 0), (12, 12), 8)
+        pg.draw.circle(self.image, (255, 0, 0), (28, 12), 8)
+        pg.draw.polygon(self.image, (255, 0, 0),[(4, 16), (20, 36), (36, 16)])
+
+        self.rect = self.image.get_rect()
+        self.rect.x = -40
+        self.rect.y = random.randint(50, HEIGHT - 100)
+
+        self.speed = 5
+
+    def update(self):
+        self.rect.x += self.speed
+        if self.rect.left > WIDTH:
+            self.kill()
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -338,7 +359,9 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
     gravities = pg.sprite.Group()
+    hearts = pg.sprite.Group()
 
+    heal_timer = -1
     tmr = 0
     clock = pg.time.Clock()
     while True:
@@ -357,6 +380,13 @@ def main():
                 score.value -= 200
                 gravities.add(Gravity(400))
         screen.blit(bg_img, [0, 0])
+
+        if life.num < 3:
+            heal_timer -= 1
+            if heal_timer <= 0:
+                if len(hearts) == 0:      # 画面にハートがないときだけ出現
+                    hearts.add(HealHeart())
+                heal_timer = 150          # 約3秒ごとに出現
 
         if tmr % 200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -392,6 +422,8 @@ def main():
                 score.value += 1
             else:
                 life.num -= 1
+                if heal_timer < 0:
+                    heal_timer = 150
                 if life.num <= 0:
                     bird.change_img(8, screen)  # こうかとん悲しみエフェクト
                     score.update(screen)
@@ -399,6 +431,10 @@ def main():
                     pg.display.update()
                     time.sleep(2)
                     return
+                
+        for heart in pg.sprite.spritecollide(bird, hearts, True):
+            if life.num < 3:
+                life.num += 1
 
         bird.update(key_lst, screen, score)
         beams.update()
@@ -407,6 +443,8 @@ def main():
         emys.draw(screen)
         bombs.update()
         bombs.draw(screen)
+        hearts.update()
+        hearts.draw(screen)
         gravities.update()
         gravities.draw(screen)
         exps.update()
