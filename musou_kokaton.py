@@ -226,8 +226,7 @@ class Enemy(pg.sprite.Sprite):
         self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.8)
         self.rect = self.image.get_rect()
         self.rect.center = random.randint(0, WIDTH), 0
-        self.vx = random.choice([-3, 3])
-        self.vy = 6
+        self.vx, self.vy = 0, +6
         self.bound = random.randint(50, HEIGHT // 2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
@@ -241,20 +240,7 @@ class Enemy(pg.sprite.Sprite):
         if self.rect.centery > self.bound:
             self.vy = 0
             self.state = "stop"
-        if self.state == "down":
-            # 横移動
-            self.rect.move_ip(self.vx, 0)
-
-            # 画面端で反転
-            if self.rect.left < 0 or self.rect.right > WIDTH:
-                self.vx *= -1
-
-            # 縦移動（必ず実行）
-            self.rect.move_ip(0, self.vy)
-
-        else:
-            # 停止状態では縦移動なし（横移動もしない）
-            pass
+        self.rect.move_ip(self.vx, self.vy)
 
 
 class Boss(Enemy):
@@ -310,7 +296,6 @@ class Life:
             rect = self.image.get_rect()
             rect.center = (WIDTH - 50 - i * 45, HEIGHT - 50)
             screen.blit(self.image, rect)
-
 
 
 class Score:
@@ -392,31 +377,6 @@ class Gravity(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
-class BulletCount:
-    """
-    残弾数を表示するクラス
-    """
-
-    def __init__(self, init_bullets=5):
-        self.value = init_bullets
-
-        raw_img = pg.image.load("fig/bullet.png")
-        self.bullet_img = pg.transform.scale(raw_img, (50, 50))
-
-        self.font = pg.font.Font(None, 40)
-        self.color = (0, 0, 0)
-
-    def update(self, screen):
-        img_rect = self.bullet_img.get_rect()
-        img_rect.right = WIDTH - 230
-        img_rect.centery = HEIGHT - 50
-        screen.blit(self.bullet_img, img_rect)
-
-        txt = self.font.render(f"x {self.value}", True, self.color)
-        txt_rect = txt.get_rect()
-        txt_rect.left = img_rect.right + 8
-        txt_rect.centery = HEIGHT - 50
-        screen.blit(txt, txt_rect)
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -424,7 +384,6 @@ def main():
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
     life = Life(3)
-    bullets = BulletCount(5)  # 初期弾数5
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
@@ -441,9 +400,7 @@ def main():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                if bullets.value > 0:
-                    beams.add(Beam(bird))
-                    bullets.value -= 1 # 弾数があったら撃ち、弾数が減るように
+                beams.add(Beam(bird))
 
             if event.type == pg.KEYDOWN and event.key == pg.K_e:
                 if score.value >= 20:
@@ -499,19 +456,12 @@ def main():
                     score.value += 10
                     bird.change_img(6, screen)
                     emy.kill()
-                    bullets.value += 5
             else:
                 exps.add(Explosion(emy, 100))  # 爆発エフェクト
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 emy.kill()
                 enemy_kill_count += 1
-                bullets.value += 5
-        # for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
-        #     exps.add(Explosion(emy, 100))  # 爆発エフェクト
-        #     score.value += 10  # 10点アップ
-        #     bird.change_img(6, screen)  # こうかとん喜びエフェクト
-        #     bullets.value += 5  # 敵を倒したので弾数+5
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
 
@@ -528,24 +478,16 @@ def main():
                     exps.add(Explosion(emy, 100))
                     score.value += 10
                     emy.kill()
-                    bullets.value += 5  # 敵を倒したので弾数+5
-
             else:
                 exps.add(Explosion(emy, 100))
                 score.value += 10
                 emy.kill()
                 enemy_kill_count += 1
-                bullets.value += 5  # 敵を倒したので弾数+5
 
-        # for emy in pg.sprite.groupcollide(emys, gravities, True, False).keys():
-        #     exps.add(Explosion(emy, 100))
-        #     score.value += 10
-        #     bullets.value += 5  # 敵を倒したので弾数+5
-
-        # # ★追加⑤ 重力場で爆弾を破壊
-        # for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
-        #     exps.add(Explosion(bomb, 50))
-        #     score.value += 1
+        # ★追加⑤ 重力場で爆弾を破壊
+        for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
+            exps.add(Explosion(bomb, 50))
+            score.value += 1
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bird.state == "hyper":
@@ -573,7 +515,6 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
-        bullets.update(screen)  # 弾数の表示
         life.update(screen)
         pg.display.update()
         tmr += 1
