@@ -38,4 +38,5 @@
 * 加速エリア
 
 ## ゲーム画面
+<img width="1277" height="743" alt="image" src="https://github.com/user-attachments/assets/2a9073dc-6a0e-41ab-9875-61736738e1a3" />
 
