@@ -226,7 +226,8 @@ class Enemy(pg.sprite.Sprite):
         self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.8)
         self.rect = self.image.get_rect()
         self.rect.center = random.randint(0, WIDTH), 0
-        self.vx, self.vy = 0, +6
+        self.vx = random.choice([-3, 3])
+        self.vy = 6
         self.bound = random.randint(50, HEIGHT // 2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
@@ -240,7 +241,20 @@ class Enemy(pg.sprite.Sprite):
         if self.rect.centery > self.bound:
             self.vy = 0
             self.state = "stop"
-        self.rect.move_ip(self.vx, self.vy)
+        if self.state == "down":
+            # 横移動
+            self.rect.move_ip(self.vx, 0)
+
+            # 画面端で反転
+            if self.rect.left < 0 or self.rect.right > WIDTH:
+                self.vx *= -1
+
+            # 縦移動（必ず実行）
+            self.rect.move_ip(0, self.vy)
+
+        else:
+            # 停止状態では縦移動なし（横移動もしない）
+            pass
 
 
 class Boss(Enemy):
