@@ -467,7 +467,6 @@ def main():
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
 
-<<<<<<< HEAD
         # ボスの移動と攻撃
         for obj in list(emys):
             if isinstance(obj, Boss):
@@ -500,19 +499,19 @@ def main():
                     score.value += 10
                     bird.change_img(6, screen)
                     emy.kill()
+                    bullets.value += 5
             else:
                 exps.add(Explosion(emy, 100))  # 爆発エフェクト
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 emy.kill()
                 enemy_kill_count += 1
-=======
-        for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
-            exps.add(Explosion(emy, 100))  # 爆発エフェクト
-            score.value += 10  # 10点アップ
-            bird.change_img(6, screen)  # こうかとん喜びエフェクト
-            bullets.value += 5  # 敵を倒したので弾数+5
->>>>>>> C0A25116/bullet
+                bullets.value += 5
+        # for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
+        #     exps.add(Explosion(emy, 100))  # 爆発エフェクト
+        #     score.value += 10  # 10点アップ
+        #     bird.change_img(6, screen)  # こうかとん喜びエフェクト
+        #     bullets.value += 5  # 敵を倒したので弾数+5
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
 
@@ -520,7 +519,6 @@ def main():
             score.value += 1  # 1点アップ
 
         # ★追加④ 重力場で敵を破壊
-<<<<<<< HEAD
         # 重力場と衝突した敵: 通常は即死だが、ボスは20ダメージ
         grav_coll = pg.sprite.groupcollide(emys, gravities, False, False)
         for emy in grav_coll.keys():
@@ -530,22 +528,24 @@ def main():
                     exps.add(Explosion(emy, 100))
                     score.value += 10
                     emy.kill()
+                    bullets.value += 5  # 敵を倒したので弾数+5
+
             else:
                 exps.add(Explosion(emy, 100))
                 score.value += 10
                 emy.kill()
                 enemy_kill_count += 1
-=======
-        for emy in pg.sprite.groupcollide(emys, gravities, True, False).keys():
-            exps.add(Explosion(emy, 100))
-            score.value += 10
-            bullets.value += 5  # 敵を倒したので弾数+5
->>>>>>> C0A25116/bullet
+                bullets.value += 5  # 敵を倒したので弾数+5
 
-        # ★追加⑤ 重力場で爆弾を破壊
-        for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
-            exps.add(Explosion(bomb, 50))
-            score.value += 1
+        # for emy in pg.sprite.groupcollide(emys, gravities, True, False).keys():
+        #     exps.add(Explosion(emy, 100))
+        #     score.value += 10
+        #     bullets.value += 5  # 敵を倒したので弾数+5
+
+        # # ★追加⑤ 重力場で爆弾を破壊
+        # for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
+        #     exps.add(Explosion(bomb, 50))
+        #     score.value += 1
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bird.state == "hyper":
