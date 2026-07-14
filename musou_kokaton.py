@@ -33,6 +33,8 @@ def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
     """
     x_diff, y_diff = dst.centerx - org.centerx, dst.centery - org.centery
     norm = math.sqrt(x_diff**2 + y_diff**2)
+    if norm == 0:
+        norm = 1
     return x_diff / norm, y_diff / norm
 
 
@@ -147,7 +149,6 @@ class Bomb(pg.sprite.Sprite):
     def update(self):
         """
         爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
         """
         self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if check_bound(self.rect) != (True, True):
@@ -179,7 +180,6 @@ class Beam(pg.sprite.Sprite):
     def update(self):
         """
         ビームを速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
         """
         self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if check_bound(self.rect) != (True, True):
@@ -236,7 +236,6 @@ class Enemy(pg.sprite.Sprite):
         """
         敵機を速度ベクトルself.vyに基づき移動（降下）させる
         ランダムに決めた停止位置_boundまで降下したら，_stateを停止状態に変更する
-        引数 screen：画面Surface
         """
         if self.rect.centery > self.bound:
             self.vy = 0
@@ -299,7 +298,6 @@ class Life:
             screen.blit(self.image, rect)
 
 
-
 class Score:
     """
     打ち落とした爆弾，敵機の数をスコアとして表示するクラス
@@ -343,10 +341,6 @@ class EMP:
             except:
                 pass
             # ボスがいればダメージを与える
-            try:
-                from types import SimpleNamespace
-            except:
-                pass
             if isinstance(emy, Boss):
                 emy.hp -= 10
                 if emy.hp <= 0:
@@ -379,6 +373,7 @@ class Gravity(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
+
 class BulletCount:
     """
     残弾数を表示するクラス
@@ -405,6 +400,7 @@ class BulletCount:
         txt_rect.centery = HEIGHT - 50
         screen.blit(txt, txt_rect)
 
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -426,6 +422,9 @@ def main():
     charge_cnt = 0
 
     while True:
+        # ★バグ修正①: 画面の更新用背景描画をループの先頭に配置
+        screen.blit(bg_img, [0, 0])
+
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -433,7 +432,7 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 if bullets.value > 0:
                     beams.add(Beam(bird))
-                    bullets.value -= 1 # 弾数があったら撃ち、弾数が減るように
+                    bullets.value -= 1  # 弾数があったら撃ち、弾数が減るように
 
             if event.type == pg.KEYDOWN and event.key == pg.K_e:
                 if score.value >= 20:
@@ -442,10 +441,10 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
                 score.value -= 200
                 gravities.add(Gravity(400))
-                screen.blit(bg_img, [0, 0])
+                # ここにあった screen.blit(bg_img, [0, 0]) は削除（ループ先頭へ移動したため）
             if event.type == pg.KEYUP and event.key == pg.K_0:
                 if charge_cnt >= 100:
-                    for angle in range(-30,31,15):
+                    for angle in range(-30, 31, 15):
                         beams.add(Beam(bird, angle_offset=angle))
                 charge_cnt = 0
 
@@ -507,29 +506,24 @@ def main():
                 emy.kill()
                 enemy_kill_count += 1
                 bullets.value += 5
-        # for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
-        #     exps.add(Explosion(emy, 100))  # 爆発エフェクト
-        #     score.value += 10  # 10点アップ
-        #     bird.change_img(6, screen)  # こうかとん喜びエフェクト
-        #     bullets.value += 5  # 敵を倒したので弾数+5
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
-
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
         # ★追加④ 重力場で敵を破壊
-        # 重力場と衝突した敵: 通常は即死だが、ボスは20ダメージ
+        # 重力場と衝突した敵: 通常は即死だが、ボスは時間経過でダメージ
         grav_coll = pg.sprite.groupcollide(emys, gravities, False, False)
         for emy in grav_coll.keys():
             if isinstance(emy, Boss):
-                emy.hp -= 20
-                if emy.hp <= 0:
-                    exps.add(Explosion(emy, 100))
-                    score.value += 10
-                    emy.kill()
-                    bullets.value += 5  # 敵を倒したので弾数+5
-
+                # ★バグ修正②: 毎フレームだと即死するので10フレームごとに10ダメージに変更
+                if tmr % 10 == 0:
+                    emy.hp -= 10
+                    if emy.hp <= 0:
+                        exps.add(Explosion(emy, 100))
+                        score.value += 10
+                        emy.kill()
+                        bullets.value += 5  # 敵を倒したので弾数+5
             else:
                 exps.add(Explosion(emy, 100))
                 score.value += 10
@@ -537,15 +531,10 @@ def main():
                 enemy_kill_count += 1
                 bullets.value += 5  # 敵を倒したので弾数+5
 
-        # for emy in pg.sprite.groupcollide(emys, gravities, True, False).keys():
-        #     exps.add(Explosion(emy, 100))
-        #     score.value += 10
-        #     bullets.value += 5  # 敵を倒したので弾数+5
-
-        # # ★追加⑤ 重力場で爆弾を破壊
-        # for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
-        #     exps.add(Explosion(bomb, 50))
-        #     score.value += 1
+        # ★バグ修正③: コメントアウトを解除し重力場で爆弾を消去可能に
+        for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
+            exps.add(Explosion(bomb, 50))
+            score.value += 1
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bird.state == "hyper":
@@ -560,6 +549,10 @@ def main():
                     pg.display.update()
                     time.sleep(2)
                     return
+
+        # ★追加④: 弾数ゼロでの詰み防止（3秒に1発自動回復、最大5発まで）
+        if tmr % 150 == 0 and bullets.value < 5:
+            bullets.value += 1
 
         bird.update(key_lst, screen, score)
         beams.update()
