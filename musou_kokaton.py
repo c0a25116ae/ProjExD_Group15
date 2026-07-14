@@ -4,7 +4,7 @@ import random
 import sys
 import time
 import pygame as pg
-
+ 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +33,8 @@ def calc_orientation(org: pg.Rect, dst: pg.Rect) -> tuple[float, float]:
     """
     x_diff, y_diff = dst.centerx - org.centerx, dst.centery - org.centery
     norm = math.sqrt(x_diff**2 + y_diff**2)
+    if norm == 0:
+        norm = 1
     return x_diff / norm, y_diff / norm
 
 
@@ -147,7 +149,6 @@ class Bomb(pg.sprite.Sprite):
     def update(self):
         """
         爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
         """
         self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if check_bound(self.rect) != (True, True):
@@ -159,14 +160,15 @@ class Beam(pg.sprite.Sprite):
     ビームに関するクラス
     """
 
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle_offset: float = 0.0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
+        引数 angle_offset：ビームの角度オフセット
         """
         super().__init__()
         self.vx, self.vy = bird.dire
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) + angle_offset
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -178,7 +180,6 @@ class Beam(pg.sprite.Sprite):
     def update(self):
         """
         ビームを速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
         """
         self.rect.move_ip(self.speed * self.vx, self.speed * self.vy)
         if check_bound(self.rect) != (True, True):
@@ -226,7 +227,8 @@ class Enemy(pg.sprite.Sprite):
         self.image = pg.transform.rotozoom(random.choice(__class__.imgs), 0, 0.8)
         self.rect = self.image.get_rect()
         self.rect.center = random.randint(0, WIDTH), 0
-        self.vx, self.vy = 0, +6
+        self.vx = random.choice([-3, 3])
+        self.vy = 6
         self.bound = random.randint(50, HEIGHT // 2)  # 停止位置
         self.state = "down"  # 降下状態or停止状態
         self.interval = random.randint(50, 300)  # 爆弾投下インターバル
@@ -235,12 +237,25 @@ class Enemy(pg.sprite.Sprite):
         """
         敵機を速度ベクトルself.vyに基づき移動（降下）させる
         ランダムに決めた停止位置_boundまで降下したら，_stateを停止状態に変更する
-        引数 screen：画面Surface
         """
         if self.rect.centery > self.bound:
             self.vy = 0
             self.state = "stop"
-        self.rect.move_ip(self.vx, self.vy)
+        # 横移動
+        if self.state == "down":
+            self.rect.move_ip(self.vx, 0)
+
+            # 画面端で反転
+            if self.rect.left < 0 or self.rect.right > WIDTH:
+                self.vx *= -1
+
+            # 縦移動（必ず実行）
+            self.rect.move_ip(0, self.vy)
+
+        else:
+            # 停止状態では縦移動なし（横移動もしない）
+            pass
+
 
 
 class Boss(Enemy):
@@ -341,10 +356,6 @@ class EMP:
             except:
                 pass
             # ボスがいればダメージを与える
-            try:
-                from types import SimpleNamespace
-            except:
-                pass
             if isinstance(emy, Boss):
                 emy.hp -= 10
                 if emy.hp <= 0:
@@ -377,6 +388,54 @@ class Gravity(pg.sprite.Sprite):
         if self.life < 0:
             self.kill()
 
+class HealHeart(pg.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+        # Lifeクラスと同じハート
+        self.image = pg.Surface((40, 40), pg.SRCALPHA)
+
+        pg.draw.circle(self.image, (255, 0, 0), (12, 12), 8)
+        pg.draw.circle(self.image, (255, 0, 0), (28, 12), 8)
+        pg.draw.polygon(self.image, (255, 0, 0),[(4, 16), (20, 36), (36, 16)])
+
+        self.rect = self.image.get_rect()
+        self.rect.x = -40
+        self.rect.y = random.randint(50, HEIGHT - 100)
+
+        self.speed = 5
+
+    def update(self):
+        self.rect.x += self.speed
+        if self.rect.left > WIDTH:
+            self.kill()
+
+class BulletCount:
+    """
+    残弾数を表示するクラス
+    """
+
+    def __init__(self, init_bullets=5):
+        self.value = init_bullets
+
+        raw_img = pg.image.load("fig/bullet.png")
+        self.bullet_img = pg.transform.scale(raw_img, (50, 50))
+
+        self.font = pg.font.Font(None, 40)
+        self.color = (0, 0, 0)
+
+    def update(self, screen):
+        img_rect = self.bullet_img.get_rect()
+        img_rect.right = WIDTH - 230
+        img_rect.centery = HEIGHT - 50
+        screen.blit(self.bullet_img, img_rect)
+
+        txt = self.font.render(f"x {self.value}", True, self.color)
+        txt_rect = txt.get_rect()
+        txt_rect.left = img_rect.right + 8
+        txt_rect.centery = HEIGHT - 50
+        screen.blit(txt, txt_rect)
+
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -384,6 +443,7 @@ def main():
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
     life = Life(3)
+    bullets = BulletCount(5)  # 初期弾数5
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
@@ -391,16 +451,26 @@ def main():
     emys = pg.sprite.Group()
     gravities = pg.sprite.Group()
     enemy_kill_count = 0
+    hearts = pg.sprite.Group()
 
+    heal_timer = -1
     tmr = 0
     clock = pg.time.Clock()
+
+    charge_cnt = 0
+
     while True:
+        # ★バグ修正①: 画面の更新用背景描画をループの先頭に配置
+        screen.blit(bg_img, [0, 0])
+
         key_lst = pg.key.get_pressed()
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beams.add(Beam(bird))
+                if bullets.value > 0:
+                    beams.add(Beam(bird))
+                    bullets.value -= 1  # 弾数があったら撃ち、弾数が減るように
 
             if event.type == pg.KEYDOWN and event.key == pg.K_e:
                 if score.value >= 20:
@@ -409,7 +479,24 @@ def main():
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
                 score.value -= 200
                 gravities.add(Gravity(400))
-        screen.blit(bg_img, [0, 0])
+                # ここにあった screen.blit(bg_img, [0, 0]) は削除（ループ先頭へ移動したため）
+            if event.type == pg.KEYUP and event.key == pg.K_0:
+                if charge_cnt >= 100:
+                    for angle in range(-30, 31, 15):
+                        beams.add(Beam(bird, angle_offset=angle))
+                charge_cnt = 0
+
+        if key_lst[pg.K_0]:
+            charge_cnt += 1
+        else:
+            charge_cnt = 0
+
+        if life.num < 3:
+            heal_timer -= 1
+            if heal_timer <= 0:
+                if len(hearts) == 0:      # 画面にハートがないときだけ出現
+                    hearts.add(HealHeart())
+                heal_timer = 150          # 約3秒ごとに出現
 
         if tmr % 200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -456,35 +543,40 @@ def main():
                     score.value += 10
                     bird.change_img(6, screen)
                     emy.kill()
+                    bullets.value += 5
             else:
                 exps.add(Explosion(emy, 100))  # 爆発エフェクト
                 score.value += 10  # 10点アップ
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
                 emy.kill()
                 enemy_kill_count += 1
+                bullets.value += 5
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
-
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
         # ★追加④ 重力場で敵を破壊
-        # 重力場と衝突した敵: 通常は即死だが、ボスは20ダメージ
+        # 重力場と衝突した敵: 通常は即死だが、ボスは時間経過でダメージ
         grav_coll = pg.sprite.groupcollide(emys, gravities, False, False)
         for emy in grav_coll.keys():
             if isinstance(emy, Boss):
-                emy.hp -= 20
-                if emy.hp <= 0:
-                    exps.add(Explosion(emy, 100))
-                    score.value += 10
-                    emy.kill()
+                # ★バグ修正②: 毎フレームだと即死するので10フレームごとに10ダメージに変更
+                if tmr % 10 == 0:
+                    emy.hp -= 10
+                    if emy.hp <= 0:
+                        exps.add(Explosion(emy, 100))
+                        score.value += 10
+                        emy.kill()
+                        bullets.value += 5  # 敵を倒したので弾数+5
             else:
                 exps.add(Explosion(emy, 100))
                 score.value += 10
                 emy.kill()
                 enemy_kill_count += 1
+                bullets.value += 5  # 敵を倒したので弾数+5
 
-        # ★追加⑤ 重力場で爆弾を破壊
+        # ★バグ修正③: コメントアウトを解除し重力場で爆弾を消去可能に
         for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
             exps.add(Explosion(bomb, 50))
             score.value += 1
@@ -495,6 +587,8 @@ def main():
                 score.value += 1
             else:
                 life.num -= 1
+                if heal_timer < 0:
+                    heal_timer = 150
                 if life.num <= 0:
                     bird.change_img(8, screen)  # こうかとん悲しみエフェクト
                     score.update(screen)
@@ -502,6 +596,14 @@ def main():
                     pg.display.update()
                     time.sleep(2)
                     return
+                
+        for heart in pg.sprite.spritecollide(bird, hearts, True):
+            if life.num < 3:
+                life.num += 1
+
+        # ★追加④: 弾数ゼロでの詰み防止（3秒に1発自動回復、最大5発まで）
+        if tmr % 150 == 0 and bullets.value < 5:
+            bullets.value += 1
 
         bird.update(key_lst, screen, score)
         beams.update()
@@ -510,11 +612,14 @@ def main():
         emys.draw(screen)
         bombs.update()
         bombs.draw(screen)
+        hearts.update()
+        hearts.draw(screen)
         gravities.update()
         gravities.draw(screen)
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        bullets.update(screen)  # 弾数の表示
         life.update(screen)
         pg.display.update()
         tmr += 1
