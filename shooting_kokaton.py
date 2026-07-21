@@ -475,8 +475,8 @@ def main():
                 if score.value >= 20:
                     score.value -= 20
                     EMP(emys, bombs, screen, exps, score)
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
-                score.value -= 200
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 100:
+                score.value -= 100
                 gravities.add(Gravity(400))
                 # ここにあった screen.blit(bg_img, [0, 0]) は削除（ループ先頭へ移動したため）
             if event.type == pg.KEYUP and event.key == pg.K_0:
